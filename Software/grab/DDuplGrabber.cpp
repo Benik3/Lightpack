@@ -29,14 +29,14 @@
 
 #ifdef DDUPL_GRAB_SUPPORT
 #include <comdef.h>
-#include <dxgi1_2.h>
+#include <dxgi1_6.h>
 #include <d3d11.h>
-_COM_SMARTPTR_TYPEDEF(IDXGIFactory1, __uuidof(IDXGIFactory1));
+_COM_SMARTPTR_TYPEDEF(IDXGIFactory7, __uuidof(IDXGIFactory7));
 _COM_SMARTPTR_TYPEDEF(IDXGIOutput, __uuidof(IDXGIOutput));
-_COM_SMARTPTR_TYPEDEF(IDXGIOutput1, __uuidof(IDXGIOutput1));
+_COM_SMARTPTR_TYPEDEF(IDXGIOutput6, __uuidof(IDXGIOutput6));
 _COM_SMARTPTR_TYPEDEF(IDXGIOutputDuplication, __uuidof(IDXGIOutputDuplication));
-_COM_SMARTPTR_TYPEDEF(IDXGIResource, __uuidof(IDXGIResource));
-_COM_SMARTPTR_TYPEDEF(IDXGISurface1, __uuidof(IDXGISurface1));
+_COM_SMARTPTR_TYPEDEF(IDXGIResource1, __uuidof(IDXGIResource1));
+_COM_SMARTPTR_TYPEDEF(IDXGISurface2, __uuidof(IDXGISurface2));
 _COM_SMARTPTR_TYPEDEF(ID3D11Device, __uuidof(ID3D11Device));
 _COM_SMARTPTR_TYPEDEF(ID3D11DeviceContext, __uuidof(ID3D11DeviceContext));
 _COM_SMARTPTR_TYPEDEF(ID3D11Texture2D, __uuidof(ID3D11Texture2D));
@@ -45,7 +45,7 @@ _COM_SMARTPTR_TYPEDEF(ID3D11ShaderResourceView, __uuidof(ID3D11ShaderResourceVie
 
 typedef HRESULT(WINAPI *CreateDXGIFactory1Func)(REFIID riid, _Out_ void **ppFactory);
 typedef HRESULT(WINAPI *D3D11CreateDeviceFunc)(
-	_In_opt_ IDXGIAdapter* pAdapter,
+	_In_opt_ IDXGIAdapter4* pAdapter,
 	D3D_DRIVER_TYPE DriverType,
 	HMODULE Software,
 	UINT Flags,
@@ -75,11 +75,11 @@ namespace {
 
 struct DDuplScreenData
 {
-	DDuplScreenData(IDXGIOutputPtr _output, IDXGIOutputDuplicationPtr _duplication, ID3D11DevicePtr _device, ID3D11DeviceContextPtr _context)
+	DDuplScreenData(IDXGIOutput6Ptr _output, IDXGIOutputDuplicationPtr _duplication, ID3D11DevicePtr _device, ID3D11DeviceContextPtr _context)
 		: output(_output), duplication(_duplication), device(_device), context(_context)
 	{}
 
-	IDXGIOutputPtr output{nullptr};
+	IDXGIOutput6Ptr output{nullptr};
 	IDXGIOutputDuplicationPtr duplication{nullptr};
 	ID3D11DevicePtr device{nullptr};
 	ID3D11DeviceContextPtr context{nullptr};
@@ -168,19 +168,19 @@ bool DDuplGrabber::init()
 bool DDuplGrabber::recreateAdapters() {
 	m_adapters.clear();
 
-	IDXGIFactory1Ptr factory;
-	HRESULT hr = ((CreateDXGIFactory1Func)m_createDXGIFactory1Func)(__uuidof(IDXGIFactory1), (void**)&factory);
+	IDXGIFactory7Ptr factory;
+	HRESULT hr = ((CreateDXGIFactory1Func)m_createDXGIFactory1Func)(__uuidof(IDXGIFactory7), (void**)&factory);
 	if (FAILED(hr))
 	{
 		qCritical(Q_FUNC_INFO " Failed to CreateDXGIFactory1: 0x%X", hr);
 		return false;
 	}
 
-	IDXGIAdapter1Ptr adapter;
-	for (int i = 0; factory->EnumAdapters1(i, &adapter) != DXGI_ERROR_NOT_FOUND; i++)
+	IDXGIAdapter4Ptr adapter;
+	for (int i = 0; factory->EnumAdapters1(i, reinterpret_cast<IDXGIAdapter1 **> (&adapter)) != DXGI_ERROR_NOT_FOUND; i++)
 	{
-		DXGI_ADAPTER_DESC1 desc;
-		adapter->GetDesc1(&desc);
+		DXGI_ADAPTER_DESC3 desc;
+		adapter->GetDesc3(&desc);
 		DEBUG_LOW_LEVEL << Q_FUNC_INFO << "Found Adapter: " << QString::fromWCharArray(desc.Description);
 		m_adapters.push_back(adapter);
 	}
@@ -249,13 +249,13 @@ QList< ScreenInfo > * DDuplGrabber::__screensWithWidgets(QList< ScreenInfo > * r
 			return result;
 	}
 
-	for (IDXGIAdapter1Ptr adapter : m_adapters)
+	for (IDXGIAdapter4Ptr adapter : m_adapters)
 	{
-		IDXGIOutputPtr output;
-		for (int i = 0; adapter->EnumOutputs(i, &output) != DXGI_ERROR_NOT_FOUND; i++)
+		IDXGIOutput6Ptr output;
+		for (int i = 0; adapter->EnumOutputs(i, reinterpret_cast<IDXGIOutput **> (&output)) != DXGI_ERROR_NOT_FOUND; i++)
 		{
-			DXGI_OUTPUT_DESC outputDesc;
-			output->GetDesc(&outputDesc);
+			DXGI_OUTPUT_DESC1 outputDesc;
+			output->GetDesc1(&outputDesc);
 			if (outputDesc.Monitor == NULL) {
 				if (!noRecursion) {
 					qWarning() << Q_FUNC_INFO << "Found a monitor with NULL handle. Recreating adapters";
@@ -397,7 +397,7 @@ bool DDuplGrabber::_reallocate(const QList< ScreenInfo > &grabScreens, bool noRe
 		return false;
 	}
 
-	for (IDXGIAdapter1Ptr adapter : m_adapters)
+	for (IDXGIAdapter4Ptr adapter : m_adapters)
 	{
 		ID3D11DevicePtr device;
 		ID3D11DeviceContextPtr context;
@@ -409,25 +409,29 @@ bool DDuplGrabber::_reallocate(const QList< ScreenInfo > &grabScreens, bool noRe
 			return false;
 		}
 
-		IDXGIOutputPtr output;
-		for (int i = 0; adapter->EnumOutputs(i, &output) != DXGI_ERROR_NOT_FOUND; i++)
+		IDXGIOutput6Ptr output6;
+		for (int i = 0; adapter->EnumOutputs(i, reinterpret_cast<IDXGIOutput **> (&output6)) != DXGI_ERROR_NOT_FOUND; i++)
 		{
-			IDXGIOutput1Ptr output1;
-			hr = output->QueryInterface(IID_IDXGIOutput1, (void**)&output1);
+			IDXGIOutputPtr output;
+			hr = output6->QueryInterface(IID_IDXGIOutput, (void**)&output);
 			if (FAILED(hr))
 			{
-				qCritical(Q_FUNC_INFO " Failed to cast output to IDXGIOutput1: 0x%X", hr);
+				qCritical(Q_FUNC_INFO " Failed to cast output to IDXGIOutput6: 0x%X", hr);
 				return false;
 			}
 
-			DXGI_OUTPUT_DESC outputDesc;
-			output->GetDesc(&outputDesc);
+			DXGI_OUTPUT_DESC1 outputDesc;
+			output6->GetDesc1(&outputDesc);
 			for (const ScreenInfo& screenInfo : grabScreens)
 			{
 				if (screenInfo.handle == outputDesc.Monitor)
 				{
 					IDXGIOutputDuplicationPtr duplication;
-					hr = output1->DuplicateOutput(device, &duplication);
+
+					const DXGI_FORMAT DesktopFormats[] = { DXGI_FORMAT_B8G8R8A8_UNORM };
+					const unsigned DesktopFormatsCounts = ARRAYSIZE(DesktopFormats);
+					hr = output6->DuplicateOutput1(device, 0, DesktopFormatsCounts, DesktopFormats, &duplication);
+
 					if (hr == E_ACCESSDENIED)
 					{
 						// fake success, see grabScreens
@@ -479,7 +483,7 @@ bool DDuplGrabber::_reallocate(const QList< ScreenInfo > &grabScreens, bool noRe
 						grabScreen.rotation = 0;
 					}
 					grabScreen.bytesPerRow = 0;
-					grabScreen.associatedData = new DDuplScreenData(output, duplication, device, context);
+					grabScreen.associatedData = new DDuplScreenData(output6, duplication, device, context);
 
 					_screensWithWidgets.append(grabScreen);
 
@@ -603,8 +607,8 @@ GrabResult DDuplGrabber::grabScreens()
 
 			DDuplScreenData* screenData = (DDuplScreenData*)screen.associatedData;
 			DXGI_OUTDUPL_FRAME_INFO frameInfo;
-			IDXGIResourcePtr resource;
-			HRESULT hr = screenData->duplication->AcquireNextFrame(ACQUIRE_TIMEOUT_INTERVAL, &frameInfo, &resource);
+			IDXGIResource1Ptr resource;
+			HRESULT hr = screenData->duplication->AcquireNextFrame(ACQUIRE_TIMEOUT_INTERVAL, &frameInfo, reinterpret_cast<IDXGIResource **> (&resource));
 			if (hr == DXGI_ERROR_WAIT_TIMEOUT)
 			{
 				// If we have an old image for this screen, we can stick to that, otherwise we have to wait
@@ -720,11 +724,11 @@ GrabResult DDuplGrabber::grabScreens()
 			else
 				screenData->context->CopyResource(screenData->textureCopy, texture);
 
-			IDXGISurface1Ptr surface;
-			hr = screenData->textureCopy->QueryInterface(IID_IDXGISurface1, (void**)&surface);
+			IDXGISurface2Ptr surface;
+			hr = screenData->textureCopy->QueryInterface(IID_IDXGISurface2, (void**)&surface);
 			if (FAILED(hr))
 			{
-				qCritical(Q_FUNC_INFO " Failed to cast textureCopy to IID_IDXGISurface1: 0x%X", hr);
+				qCritical(Q_FUNC_INFO " Failed to cast textureCopy to IID_IDXGISurface2: 0x%X", hr);
 				return GrabResultError;
 			}
 
