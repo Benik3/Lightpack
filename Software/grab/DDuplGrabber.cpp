@@ -30,17 +30,17 @@
 #ifdef DDUPL_GRAB_SUPPORT
 #include <comdef.h>
 #include <dxgi1_6.h>
-#include <d3d11.h>
+#include <d3d11_4.h>
 _COM_SMARTPTR_TYPEDEF(IDXGIFactory7, __uuidof(IDXGIFactory7));
 _COM_SMARTPTR_TYPEDEF(IDXGIOutput, __uuidof(IDXGIOutput));
 _COM_SMARTPTR_TYPEDEF(IDXGIOutput6, __uuidof(IDXGIOutput6));
 _COM_SMARTPTR_TYPEDEF(IDXGIOutputDuplication, __uuidof(IDXGIOutputDuplication));
 _COM_SMARTPTR_TYPEDEF(IDXGIResource1, __uuidof(IDXGIResource1));
 _COM_SMARTPTR_TYPEDEF(IDXGISurface2, __uuidof(IDXGISurface2));
-_COM_SMARTPTR_TYPEDEF(ID3D11Device, __uuidof(ID3D11Device));
-_COM_SMARTPTR_TYPEDEF(ID3D11DeviceContext, __uuidof(ID3D11DeviceContext));
-_COM_SMARTPTR_TYPEDEF(ID3D11Texture2D, __uuidof(ID3D11Texture2D));
-_COM_SMARTPTR_TYPEDEF(ID3D11ShaderResourceView, __uuidof(ID3D11ShaderResourceView));
+_COM_SMARTPTR_TYPEDEF(ID3D11Device5, __uuidof(ID3D11Device5));
+_COM_SMARTPTR_TYPEDEF(ID3D11DeviceContext4, __uuidof(ID3D11DeviceContext4));
+_COM_SMARTPTR_TYPEDEF(ID3D11Texture2D1, __uuidof(ID3D11Texture2D1));
+_COM_SMARTPTR_TYPEDEF(ID3D11ShaderResourceView1, __uuidof(ID3D11ShaderResourceView1));
 
 
 typedef HRESULT(WINAPI *CreateDXGIFactory1Func)(REFIID riid, _Out_ void **ppFactory);
@@ -52,9 +52,9 @@ typedef HRESULT(WINAPI *D3D11CreateDeviceFunc)(
 	_In_reads_opt_(FeatureLevels) CONST D3D_FEATURE_LEVEL* pFeatureLevels,
 	UINT FeatureLevels,
 	UINT SDKVersion,
-	_Out_opt_ ID3D11Device** ppDevice,
+	_Out_opt_ ID3D11Device5** ppDevice,
 	_Out_opt_ D3D_FEATURE_LEVEL* pFeatureLevel,
-	_Out_opt_ ID3D11DeviceContext** ppImmediateContext);
+	_Out_opt_ ID3D11DeviceContext4** ppImmediateContext);
 
 #define ACQUIRE_TIMEOUT_INTERVAL 0 // timing is done via the timer freqency, so we don't wait again
 #define ACCESSDENIED_DESKTOP_RETRY_INTERVAL 1000
@@ -75,16 +75,16 @@ namespace {
 
 struct DDuplScreenData
 {
-	DDuplScreenData(IDXGIOutput6Ptr _output, IDXGIOutputDuplicationPtr _duplication, ID3D11DevicePtr _device, ID3D11DeviceContextPtr _context)
+	DDuplScreenData(IDXGIOutput6Ptr _output, IDXGIOutputDuplicationPtr _duplication, ID3D11Device5Ptr _device, ID3D11DeviceContext4Ptr _context)
 		: output(_output), duplication(_duplication), device(_device), context(_context)
 	{}
 
 	IDXGIOutput6Ptr output{nullptr};
 	IDXGIOutputDuplicationPtr duplication{nullptr};
-	ID3D11DevicePtr device{nullptr};
-	ID3D11DeviceContextPtr context{nullptr};
+	ID3D11Device5Ptr device{nullptr};
+	ID3D11DeviceContext4Ptr context{nullptr};
 
-	ID3D11Texture2DPtr textureCopy{nullptr};
+	ID3D11Texture2D1Ptr textureCopy{nullptr};
 	DXGI_MAPPED_RECT surfaceMap;
 };
 
@@ -399,8 +399,8 @@ bool DDuplGrabber::_reallocate(const QList< ScreenInfo > &grabScreens, bool noRe
 
 	for (IDXGIAdapter4Ptr adapter : m_adapters)
 	{
-		ID3D11DevicePtr device;
-		ID3D11DeviceContextPtr context;
+		ID3D11Device5Ptr device;
+		ID3D11DeviceContext4Ptr context;
 		D3D_FEATURE_LEVEL featureLevel;
 		HRESULT hr = ((D3D11CreateDeviceFunc)m_D3D11CreateDeviceFunc)(adapter, D3D_DRIVER_TYPE_UNKNOWN, NULL, 0, NULL, 0, D3D11_SDK_VERSION, &device, &featureLevel, &context);
 		if (FAILED(hr))
@@ -632,7 +632,7 @@ GrabResult DDuplGrabber::grabScreens()
 			}
 			anyUpdate = true;
 
-			ID3D11Texture2DPtr texture;
+			ID3D11Texture2D1Ptr texture;
 			hr = resource->QueryInterface(IID_ID3D11Texture2D, (void**)&texture);
 			if (FAILED(hr))
 			{
@@ -640,8 +640,8 @@ GrabResult DDuplGrabber::grabScreens()
 				return GrabResultError;
 			}
 
-			D3D11_TEXTURE2D_DESC desc;
-			texture->GetDesc(&desc);
+			D3D11_TEXTURE2D_DESC1 desc;
+			texture->GetDesc1(&desc);
 
 			// Expect matching or flipped rotation
 			if (screen.rotation % 2 == 0 && (desc.Width != screen.screenInfo.rect.width() || desc.Height != screen.screenInfo.rect.height())
@@ -655,7 +655,7 @@ GrabResult DDuplGrabber::grabScreens()
 				return GrabResultError;
 			}
 
-			D3D11_TEXTURE2D_DESC texDesc;
+			D3D11_TEXTURE2D_DESC1 texDesc;
 			ZeroMemory(&texDesc, sizeof(texDesc));
 			texDesc.Width = desc.Width >> DownscaleMipLevel;
 			texDesc.Height = desc.Height >> DownscaleMipLevel;
@@ -679,7 +679,7 @@ GrabResult DDuplGrabber::grabScreens()
 			screen.imgData = NULL;
 			screen.imgDataSize = 0;
 
-			hr = screenData->device->CreateTexture2D(&texDesc, NULL, &screenData->textureCopy);
+			hr = screenData->device->CreateTexture2D1(&texDesc, NULL, &screenData->textureCopy);
 			if (FAILED(hr))
 			{
 				qCritical(Q_FUNC_INFO " Failed to CreateTexture2D: 0x%X", hr);
@@ -687,7 +687,7 @@ GrabResult DDuplGrabber::grabScreens()
 			}
 
 			if (DownscaleMipLevel > 0) {
-				D3D11_TEXTURE2D_DESC scaledTextureDesc;
+				D3D11_TEXTURE2D_DESC1 scaledTextureDesc;
 				ZeroMemory(&scaledTextureDesc, sizeof(scaledTextureDesc));
 				scaledTextureDesc.Width = desc.Width;
 				scaledTextureDesc.Height = desc.Height;
@@ -701,25 +701,25 @@ GrabResult DDuplGrabber::grabScreens()
 				scaledTextureDesc.CPUAccessFlags = 0;
 				scaledTextureDesc.MiscFlags = D3D11_RESOURCE_MISC_GENERATE_MIPS;
 
-				ID3D11Texture2DPtr scaledTexture;
-				hr = screenData->device->CreateTexture2D(&scaledTextureDesc, NULL, &scaledTexture);
+				ID3D11Texture2D1Ptr scaledTexture;
+				hr = screenData->device->CreateTexture2D1(&scaledTextureDesc, NULL, &scaledTexture);
 				if (FAILED(hr))
 				{
 					qCritical(Q_FUNC_INFO " Failed to CreateTexture2D: 0x%X", hr);
 					return GrabResultError;
 				}
-				ID3D11ShaderResourceViewPtr scaledTextureView;
-				hr = screenData->device->CreateShaderResourceView(scaledTexture, NULL, &scaledTextureView);
+				ID3D11ShaderResourceView1Ptr scaledTextureView;
+				hr = screenData->device->CreateShaderResourceView1(scaledTexture, NULL, &scaledTextureView);
 				if (FAILED(hr))
 				{
 					qCritical(Q_FUNC_INFO " Failed to CreateShaderResourceView: 0x%X", hr);
 					return GrabResultError;
 				}
 
-				screenData->context->CopySubresourceRegion(scaledTexture, 0, 0, 0, 0, texture, 0, NULL);
+				screenData->context->CopySubresourceRegion1(scaledTexture, 0, 0, 0, 0, texture, 0, NULL, 0);
 				screenData->context->GenerateMips(scaledTextureView);
 
-				screenData->context->CopySubresourceRegion(screenData->textureCopy, 0, 0, 0, 0, scaledTexture, DownscaleMipLevel, NULL);
+				screenData->context->CopySubresourceRegion1(screenData->textureCopy, 0, 0, 0, 0, scaledTexture, DownscaleMipLevel, NULL, 0);
 			}
 			else
 				screenData->context->CopyResource(screenData->textureCopy, texture);

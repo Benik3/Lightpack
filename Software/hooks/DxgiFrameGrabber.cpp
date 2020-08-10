@@ -3,7 +3,7 @@
 #include "hooksutils.h"
 #include "../common/msvcstub.h"
 #include <initguid.h>
-#include "D3D11.h"
+#include "D3D11_4.h"
 #include "DXGI.h"
 #include "D3D10.h"
 
@@ -219,15 +219,15 @@ bool DxgiFrameGrabber::D3D10Map() {
 	return true;
 }
 
-void DxgiFrameGrabber::D3D11Grab(ID3D11Texture2D *pBackBuffer) {
-	D3D11_TEXTURE2D_DESC tex_desc;
-	pBackBuffer->GetDesc(&tex_desc);
+void DxgiFrameGrabber::D3D11Grab(ID3D11Texture2D1 *pBackBuffer) {
+	D3D11_TEXTURE2D_DESC1 tex_desc;
+	pBackBuffer->GetDesc1(&tex_desc);
 
-	ID3D11Device *pDev;
-	pBackBuffer->GetDevice(&pDev);
-	ID3D11DeviceContext * pDevContext;
+	ID3D11Device5 *pDev;
+	pBackBuffer->GetDevice(reinterpret_cast<ID3D11Device **> (&pDev));
+	ID3D11DeviceContext4 * pDevContext;
 
-	ID3D11Texture2D * pTexture;
+	ID3D11Texture2D1 * pTexture;
 
 	HRESULT hr = S_OK;
 	if (m_mapTexture11 &&
@@ -246,11 +246,11 @@ void DxgiFrameGrabber::D3D11Grab(ID3D11Texture2D *pBackBuffer) {
 		tex_desc.Usage = D3D11_USAGE_STAGING;
 		tex_desc.MiscFlags = 0;
 
-		hr = pDev->CreateTexture2D(&tex_desc, NULL, &pTexture);
+		hr = pDev->CreateTexture2D1(&tex_desc, NULL, &pTexture);
 		m_mapTexture11 = pTexture;
 		m_mapDevice11 = pDev;
 		m_mapDevice11->AddRef();
-		pDev->GetImmediateContext(&pDevContext);
+		pDev->GetImmediateContext3(reinterpret_cast<ID3D11DeviceContext3 **> (&pDevContext));
 		m_mapDeviceContext11 = pDevContext;
 		m_mapDeviceContext11->AddRef();
 		m_mapWidth = tex_desc.Width;
@@ -383,7 +383,7 @@ HRESULT WINAPI DXGIPresent(IDXGISwapChain * sc, UINT b, UINT c) {
 						}
 					}
 					if (dxgiDevice == DxgiDeviceD3D11) {
-						ID3D11Texture2D *pBackBuffer;
+						ID3D11Texture2D1 *pBackBuffer;
 						HRESULT hr = sc->GetBuffer(0, IID_ID3D11Texture2D, reinterpret_cast<LPVOID*> (&pBackBuffer));
 						if (hr == S_OK) {
 							dxgiFrameGrabber->D3D11Grab(pBackBuffer);
