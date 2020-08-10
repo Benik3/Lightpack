@@ -126,7 +126,7 @@ UINT GetDxgiPresentOffset(HWND hwnd) {
 	dxgiSwapChainDesc.BufferCount	= 2;
 	dxgiSwapChainDesc.OutputWindow	= hwnd;
 	dxgiSwapChainDesc.Windowed		= true;
-	dxgiSwapChainDesc.SwapEffect	= DXGI_SWAP_EFFECT_DISCARD;
+	dxgiSwapChainDesc.SwapEffect	= DXGI_SWAP_EFFECT_FLIP_DISCARD;
 	dxgiSwapChainDesc.Flags			= 0;
 
 	IDXGISwapChain * pSc;
