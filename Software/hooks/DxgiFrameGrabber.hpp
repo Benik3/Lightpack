@@ -8,11 +8,11 @@ class IPCContext;
 class ProxyFuncVFTable;
 class Logger;
 struct ID3D10Texture2D;
-struct ID3D11Texture2D;
+struct ID3D11Texture2D1;
 struct IDXGISwapChain;
 struct ID3D10Device;
-struct ID3D11Device;
-struct ID3D11DeviceContext;
+struct ID3D11Device5;
+struct ID3D11DeviceContext4;
 enum DXGI_FORMAT;
 
 class DxgiFrameGrabber : public GAPIProxyFrameGrabber, LoggableTrait
@@ -52,15 +52,15 @@ protected:
 	DxgiFrameGrabber(HANDLE syncRunMutex, Logger *logger);
 	void D3D10Grab(ID3D10Texture2D* pBackBuffer);
 	bool D3D10Map();
-	void D3D11Grab(ID3D11Texture2D *pBackBuffer);
+	void D3D11Grab(ID3D11Texture2D1 *pBackBuffer);
 	bool D3D11Map();
 
 	ProxyFuncVFTable *m_dxgiPresentProxyFuncVFTable;
 	ID3D10Texture2D *m_mapTexture10;
 	ID3D10Device *m_mapDevice10;
-	ID3D11Texture2D *m_mapTexture11;
-	ID3D11Device *m_mapDevice11;
-	ID3D11DeviceContext *m_mapDeviceContext11;
+	ID3D11Texture2D1 *m_mapTexture11;
+	ID3D11Device5 *m_mapDevice11;
+	ID3D11DeviceContext4 *m_mapDeviceContext11;
 	UINT m_mapWidth;
 	UINT m_mapHeight;
 	DXGI_FORMAT m_mapFormat;
