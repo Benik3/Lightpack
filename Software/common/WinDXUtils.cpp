@@ -32,7 +32,7 @@
 #include "../src/debug.h"
 
 #include "msvcstub.h"
-#include <DXGI.h>
+#include <DXGI1_6.h>
 #include <D3D10_1.h>
 #include <D3D10.h>
 #include <d3d9.h>
@@ -45,7 +45,7 @@
 namespace WinUtils
 {
 typedef HRESULT (WINAPI* CREATEDXGIFACTORY)(REFIID, void**);
-typedef HRESULT (WINAPI* D3D10CREATEDEVICEANDSWAPCHAIN)(IDXGIAdapter*, D3D10_DRIVER_TYPE, HMODULE, UINT, UINT, DXGI_SWAP_CHAIN_DESC*, IDXGISwapChain**, ID3D10Device**);
+typedef HRESULT (WINAPI* D3D10CREATEDEVICEANDSWAPCHAIN)(IDXGIAdapter*, D3D10_DRIVER_TYPE, HMODULE, UINT, UINT, DXGI_SWAP_CHAIN_DESC*, IDXGISwapChain4**, ID3D10Device**);
 static CREATEDXGIFACTORY pCreateDXGIFactory = NULL;
 static D3D10CREATEDEVICEANDSWAPCHAIN pD3D10CreateDeviceAndSwapChain = NULL;
 
@@ -129,7 +129,7 @@ UINT GetDxgiPresentOffset(HWND hwnd) {
 	dxgiSwapChainDesc.SwapEffect	= DXGI_SWAP_EFFECT_FLIP_DISCARD;
 	dxgiSwapChainDesc.Flags			= 0;
 
-	IDXGISwapChain * pSc;
+	IDXGISwapChain4 * pSc;
 	ID3D10Device	* pDev;
 	pD3D10CreateDeviceAndSwapChain = (D3D10CREATEDEVICEANDSWAPCHAIN)GetProcAddress(GetModuleHandle(L"d3d10.dll"), "D3D10CreateDeviceAndSwapChain");
 	hresult = pD3D10CreateDeviceAndSwapChain(adapter, D3D10_DRIVER_TYPE_HARDWARE, NULL, 0, D3D10_SDK_VERSION, &dxgiSwapChainDesc, &pSc, &pDev);
