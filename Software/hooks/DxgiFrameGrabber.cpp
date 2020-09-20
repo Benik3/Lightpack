@@ -4,7 +4,7 @@
 #include "../common/msvcstub.h"
 #include <initguid.h>
 #include "D3D11_4.h"
-#include "DXGI.h"
+#include "DXGI1_6.h"
 #include "D3D10.h"
 
 #include "ProxyFuncVFTable.hpp"
@@ -20,9 +20,9 @@ enum DxgiDevice {
 
 DxgiDevice dxgiDevice = DxgiDeviceUnknown;
 
-typedef HRESULT (WINAPI *DXGISCPresentFunc)(IDXGISwapChain *, UINT, UINT);
+typedef HRESULT (WINAPI *DXGISCPresentFunc)(IDXGISwapChain4 *, UINT, UINT);
 
-HRESULT WINAPI DXGIPresent(IDXGISwapChain * sc, UINT b, UINT c);
+HRESULT WINAPI DXGIPresent(IDXGISwapChain4 * sc, UINT b, UINT c);
 
 DxgiFrameGrabber::DxgiFrameGrabber(HANDLE syncRunMutex, Logger *logger) : GAPIProxyFrameGrabber(syncRunMutex), LoggableTrait(logger) {
 	m_isInited = false;
@@ -324,7 +324,7 @@ bool DxgiFrameGrabber::D3D11Map() {
 	return true;
 }
 
-HRESULT WINAPI DXGIPresent(IDXGISwapChain * sc, UINT b, UINT c) {
+HRESULT WINAPI DXGIPresent(IDXGISwapChain4 * sc, UINT b, UINT c) {
 
 	DxgiFrameGrabber *dxgiFrameGrabber = DxgiFrameGrabber::getInstance();
 	dxgiFrameGrabber->m_frameCount++;

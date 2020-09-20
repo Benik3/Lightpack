@@ -9,7 +9,7 @@ class ProxyFuncVFTable;
 class Logger;
 struct ID3D10Texture2D;
 struct ID3D11Texture2D1;
-struct IDXGISwapChain;
+struct IDXGISwapChain4;
 struct ID3D10Device;
 struct ID3D11Device5;
 struct ID3D11DeviceContext4;
@@ -46,7 +46,7 @@ public:
 	void freeDeviceData10();
 	void freeDeviceData11();
 
-	friend HRESULT WINAPI DXGIPresent(IDXGISwapChain * sc, UINT b, UINT c);
+	friend HRESULT WINAPI DXGIPresent(IDXGISwapChain4 * sc, UINT b, UINT c);
 
 protected:
 	DxgiFrameGrabber(HANDLE syncRunMutex, Logger *logger);
