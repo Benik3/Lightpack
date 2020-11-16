@@ -184,6 +184,8 @@ bool DxgiFrameGrabber::D3D10Map() {
 		{
 			case DXGI_FORMAT_R8G8B8A8_UNORM:
 			case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
+			case DXGI_FORMAT_R16G16B16A16_FLOAT:
+			case DXGI_FORMAT_R10G10B10A2_UNORM:
 				ipcContext->m_pMemDesc->format = BufferFormatAbgr;
 				break;
 			case DXGI_FORMAT_B8G8R8A8_UNORM:
@@ -336,6 +338,7 @@ HRESULT WINAPI DXGIPresent(IDXGISwapChain4 * sc, UINT b, UINT c) {
 		DXGI_SWAP_CHAIN_DESC desc;
 		sc->GetDesc(&desc);
 		logger->reportLogDebug(L"dxgi present: Buffers count: %u, Output hwnd: %u, %s", desc.BufferCount, desc.OutputWindow, desc.Windowed ? L"windowed" : L"fullscreen");
+		//sc->SetColorSpace1(DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020);
 
 		if (dxgiDevice == DxgiDeviceUnknown) {
 			// If the process uses DX10, the device will internally be a DX11 device too
