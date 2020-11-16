@@ -428,7 +428,8 @@ bool DDuplGrabber::_reallocate(const QList< ScreenInfo > &grabScreens, bool noRe
 				{
 					IDXGIOutputDuplicationPtr duplication;
 
-					const DXGI_FORMAT DesktopFormats[] = { DXGI_FORMAT_B8G8R8A8_UNORM };
+					//const DXGI_FORMAT DesktopFormats[] = { DXGI_FORMAT_B8G8R8A8_UNORM };
+					const DXGI_FORMAT DesktopFormats[] = { DXGI_FORMAT_R10G10B10A2_UNORM };
 					const unsigned DesktopFormatsCounts = ARRAYSIZE(DesktopFormats);
 					hr = output6->DuplicateOutput1(device, 0, DesktopFormatsCounts, DesktopFormats, &duplication);
 
@@ -523,6 +524,8 @@ BufferFormat mapDXGIFormatToBufferFormat(DXGI_FORMAT format)
 		case DXGI_FORMAT_R8G8B8A8_UINT:
 		case DXGI_FORMAT_R8G8B8A8_UNORM:
 		case DXGI_FORMAT_R8G8B8A8_TYPELESS:
+		case DXGI_FORMAT_R16G16B16A16_FLOAT:
+		case DXGI_FORMAT_R10G10B10A2_UNORM:
 			return BufferFormatAbgr;
 		default:
 			return BufferFormatUnknown;
