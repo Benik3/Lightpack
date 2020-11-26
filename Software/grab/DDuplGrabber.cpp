@@ -517,17 +517,84 @@ BufferFormat mapDXGIFormatToBufferFormat(DXGI_FORMAT format)
 {
 	switch (format)
 	{
-		case DXGI_FORMAT_B8G8R8A8_UNORM:
 		case DXGI_FORMAT_B8G8R8A8_TYPELESS:
+		case DXGI_FORMAT_B8G8R8A8_UNORM:
+		case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB:
+		case DXGI_FORMAT_B8G8R8X8_TYPELESS:
+		case DXGI_FORMAT_B8G8R8X8_UNORM:
+		case DXGI_FORMAT_B8G8R8X8_UNORM_SRGB:
 			return BufferFormatArgb;
+		case DXGI_FORMAT_R8G8B8A8_TYPELESS:
+		case DXGI_FORMAT_R8G8B8A8_SINT:
+		case DXGI_FORMAT_R8G8B8A8_SNORM:
 		case DXGI_FORMAT_R8G8B8A8_UINT:
 		case DXGI_FORMAT_R8G8B8A8_UNORM:
-		case DXGI_FORMAT_R8G8B8A8_TYPELESS:
-		case DXGI_FORMAT_R16G16B16A16_FLOAT:
-		case DXGI_FORMAT_R10G10B10A2_UNORM:
+		case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
 			return BufferFormatAbgr;
 		default:
 			return BufferFormatUnknown;
+	}
+}
+
+DXGI_FORMAT DxgiToUnormFormat(DXGI_FORMAT format)
+{
+	switch (format)
+	{
+		case DXGI_FORMAT_R16G16B16A16_TYPELESS:
+		case DXGI_FORMAT_R16G16B16A16_FLOAT:
+		case DXGI_FORMAT_R16G16B16A16_SINT:
+		case DXGI_FORMAT_R16G16B16A16_SNORM:
+		case DXGI_FORMAT_R16G16B16A16_UINT:
+			return DXGI_FORMAT_R16G16B16A16_UNORM;
+
+		case DXGI_FORMAT_R10G10B10A2_TYPELESS:
+		case DXGI_FORMAT_R10G10B10A2_UINT:
+			return DXGI_FORMAT_R10G10B10A2_UNORM;
+
+		case DXGI_FORMAT_R8G8B8A8_TYPELESS:
+		case DXGI_FORMAT_R8G8B8A8_SINT:
+		case DXGI_FORMAT_R8G8B8A8_SNORM:
+		case DXGI_FORMAT_R8G8B8A8_UINT:
+		case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
+			return DXGI_FORMAT_R8G8B8A8_UNORM;
+
+		case DXGI_FORMAT_B8G8R8A8_TYPELESS:
+		case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB:
+			return DXGI_FORMAT_B8G8R8A8_UNORM;
+
+		case DXGI_FORMAT_B8G8R8X8_TYPELESS:
+		case DXGI_FORMAT_B8G8R8X8_UNORM_SRGB:
+			return DXGI_FORMAT_B8G8R8X8_UNORM;
+
+		default:
+			return format;
+	}
+}
+
+QImage::Format DxgiToQimageFormat(DXGI_FORMAT format)
+{
+	switch (format)
+	{
+		case DXGI_FORMAT_R16G16B16A16_UNORM:
+			return QImage::Format_RGBA64;
+	
+		case DXGI_FORMAT_R10G10B10A2_UNORM:
+			return QImage::Format_BGR30;
+
+		case DXGI_FORMAT_R8G8B8A8_UNORM:
+		case DXGI_FORMAT_B8G8R8A8_UNORM:
+		case DXGI_FORMAT_B8G8R8X8_UNORM:
+			return QImage::Format_RGB32;
+
+		case DXGI_FORMAT_B5G6R5_UNORM:
+		case DXGI_FORMAT_B5G5R5A1_UNORM:
+			return QImage::Format_RGB16;
+
+		case DXGI_FORMAT_B4G4R4A4_UNORM:
+			return QImage::Format_RGB444;
+
+		default:
+			return QImage::Format_Invalid;
 	}
 }
 
@@ -666,7 +733,7 @@ GrabResult DDuplGrabber::grabScreens()
 			texDesc.SampleDesc.Count = 1;
 			texDesc.SampleDesc.Quality = 0;
 			texDesc.Usage = D3D11_USAGE_STAGING;
-			texDesc.Format = desc.Format;
+			texDesc.Format = DxgiToUnormFormat(desc.Format);
 			texDesc.BindFlags = 0;
 			texDesc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
 			texDesc.MiscFlags = 0;
@@ -698,7 +765,7 @@ GrabResult DDuplGrabber::grabScreens()
 				scaledTextureDesc.SampleDesc.Count = 1;
 				scaledTextureDesc.SampleDesc.Quality = 0;
 				scaledTextureDesc.Usage = D3D11_USAGE_DEFAULT;
-				scaledTextureDesc.Format = desc.Format;
+				scaledTextureDesc.Format = texDesc.Format;
 				scaledTextureDesc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
 				scaledTextureDesc.CPUAccessFlags = 0;
 				scaledTextureDesc.MiscFlags = D3D11_RESOURCE_MISC_GENERATE_MIPS;
@@ -741,11 +808,33 @@ GrabResult DDuplGrabber::grabScreens()
 				return GrabResultError;
 			}
 
-			screen.imgData = screenData->surfaceMap.pBits;
-			screen.imgDataSize = texDesc.Height * screenData->surfaceMap.Pitch;
-			screen.imgFormat = mapDXGIFormatToBufferFormat(desc.Format);
-			screen.scale = 1.0 / (1 << DownscaleMipLevel);
-			screen.bytesPerRow = screenData->surfaceMap.Pitch;
+			QImage::Format qimageFormat = DxgiToQimageFormat(texDesc.Format);
+
+			if (qimageFormat == QImage::Format_Invalid)
+			{
+				qCritical(Q_FUNC_INFO " Unsupported DXGI format: 0x%X", desc.Format);
+				return GrabResultError;
+			}
+			else if (qimageFormat == QImage::Format_RGB32)
+			{
+				screen.imgData = screenData->surfaceMap.pBits;
+				screen.imgDataSize = texDesc.Height * screenData->surfaceMap.Pitch;
+				screen.imgFormat = mapDXGIFormatToBufferFormat(texDesc.Format);
+				screen.scale = 1.0 / (1 << DownscaleMipLevel);
+				screen.bytesPerRow = screenData->surfaceMap.Pitch;
+			}
+			else
+			{
+				static QImage imog;
+				imog = QImage(screenData->surfaceMap.pBits, screenData->surfaceMap.Pitch / 4, texDesc.Height, qimageFormat);
+				imog.convertTo(QImage::Format_RGB32, Qt::AutoColor);
+
+				screen.imgData = imog.bits();
+				screen.imgFormat = BufferFormatArgb;
+				screen.imgDataSize = imog.sizeInBytes();
+				screen.scale = 1.0 / (1 << DownscaleMipLevel);
+				screen.bytesPerRow = imog.bytesPerLine();
+			}
 
 			screenData->duplication->ReleaseFrame();
 		}
